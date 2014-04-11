@@ -17,8 +17,15 @@
 uint16_t testProg[]=
 {
     NOP1, // this instruction is not executed, reset vector set to next address (1)
-    JMPU, 6,
-    LDA, 0321,
+    // programm start at address 1
+    LDA, 0,
+    OR, 7,
+    AND, 2,
+    EXOR, 7,
+
+    JMPU, 1,
+    LDA, 07,
+    AND, 02,
     PLPC,
     GSBU, 3,
     SAF,
@@ -33,19 +40,53 @@ uint16_t testProg[]=
     JMPR+AF_FLAG, 1,
 };
 
+void dump(Cpu_t *cpu,uint16_t num)
+{
+  uint16_t n;
+  SYSTEMOUT("memory:");
+  for(n=0;n<num;n++) SYSTEMOUTOCT("",cpu->M[cpu->bank][n]);
+  SYSTEMOUTCR;
+}
+void dumpStack(Cpu_t *cpu,uint16_t num)
+{
+  uint16_t n;
+  SYSTEMOUT("stack:");
+  for(n=0;n<num;n++) SYSTEMOUTOCT("",cpu->stack[n]);
+  SYSTEMOUTCR;
+}
+int main(void)
+{
+    uint8_t c;
 
-int main(void) {
-  //printf("%04o:\n\r",testProg[2]);
     Cpu_t cpu;
 	SYSTEMOUT("T3Emulator"); /* prints T3Emulator */
 	simulatorReset(&cpu);
 	memcpy(&cpu.M[0],testProg,sizeof(testProg));
+	SYSTEMOUTCR;
 
-    SYSTEMOUT("run"); /* prints T3Emulator */
+    SYSTEMOUT("commands"); /* prints T3Emulator */
+    SYSTEMOUT("d: dump"); /* prints T3Emulator */
+    SYSTEMOUT("x: exit"); /* prints T3Emulator */
+    SYSTEMOUT("default: single step"); /* prints T3Emulator */
+    SYSTEMOUTCR;
+
 	do{
-	  showCpu(&cpu);
-	  executeVm(&cpu);
-	}while(getchar()!='x');
+	  c=getchar();
+	  switch(c)
+	  {
+        case 'd':
+        {
+          dumpStack(&cpu,8);
+          dump(&cpu,16);
+          SYSTEMOUTCR;
+        }break;
+        default:
+        {
+          showCpu(&cpu);
+          executeVm(&cpu);
+        }break;
+	  }
+	}while(c!='x');
 
 	SYSTEMOUT("good bye");
 	return EXIT_SUCCESS;

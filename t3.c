@@ -15,24 +15,17 @@
 
 void simulatorReset(Cpu_t *cpu)
 {
+  uint16_t n;
   cpu->bank=0;
   cpu->Pc=1;
   cpu->Sp=0;
   cpu->A=0;
   cpu->flags=(1<<ONE1_FLAG)|(1<<ONE_FLAG);
+  for(n=0;n<STACK_SIZE;n++)cpu->stack[n]=0;
+  cpu->outport=0;
+  cpu->display=0;
+}
 
-}
-void dump(Cpu_t *cpu,uint16_t num)
-{
-  uint16_t n;
-  for(n=0;n<num;n++) ERROR("",cpu->M[cpu->bank][n]);
-}
-void dumpStack(Cpu_t *cpu,uint16_t num)
-{
-  uint16_t n;
-  ERROR("stack:\n",0);
-  for(n=0;n<num;n++) ERROR("",cpu->stack[n]);
-}
 uint16_t readMemory(Cpu_t *cpu, uint16_t mode)
 {
   uint16_t tmp;
@@ -125,30 +118,18 @@ void writeMemory(Cpu_t *cpu, uint16_t mode,uint16_t value)
 }
 void showCpu(Cpu_t *cpu)
 {
-    printf("%04o:",cpu->Pc);
-    printf("%04o ",readMemory(cpu,0));
-    printf("sp:%04o ",cpu->Sp);
-    printf("A:%04o ",cpu->A);
+    SYSTEMOUT_("adr")
+    SYSTEMOUTOCT("",cpu->Pc);
+    SYSTEMOUTOCT(":",readMemory(cpu,0));
+    SYSTEMOUTOCT("Sp:",cpu->Sp);
+    SYSTEMOUTOCT("A:",cpu->A);
     printf("SF:%01o ",((cpu->flags)>>SF_FLAG)&1);
     printf("AF:%01o ",((cpu->flags)>>AF_FLAG)&1);
-
-    /*
-    uint16_t M[2][M_SIZE]; // memory
-    uint16_t stack[STACK_SIZE];
-    uint16_t ACCU;
-    uint16_t Sp;
-    uint16_t Pc; // program counter
-    uint16_t flags;
-    uint16_t display; // 4 digit nixie tube display ( panel output P )
-    uint16_t keys;    // 12 input keys ( panel input P )
-    uint16_t inport;  // 12 bit user input lines ( IO )
-    uint16_t outport; // 12 bit user output lines ( IO )
-    */
-    dump(cpu,10);
+    SYSTEMOUTOCT("DISPLAY:",cpu->display);
+    SYSTEMOUTOCT("OUTPORT:",cpu->outport);
 }
 void push(Cpu_t *cpu,uint16_t value)
 {
-  dumpStack(cpu,3);
     if((cpu->Sp)<STACK_SIZE) cpu->stack[cpu->Sp++]=value; // push constant
     else
     {
@@ -200,7 +181,17 @@ void executeVm(Cpu_t *cpu)
       INCPC(cpu);
     }break;
     //#define MINUS  00006 // A-M-1 -> A
-
+    case MINUS:{
+      DISASM("MINUS");
+      INCPC(cpu);
+      tmp=readMemory(cpu,mode);
+      cpu->A-=tmp;
+      cpu->A--;
+      if(cpu->flags&(1<<AF_FLAG))cpu->A++;
+      if(cpu->A>0777)cpu->flags|=(1<<AF_FLAG);
+      else cpu->flags&=~(1<<AF_FLAG);
+      cpu->A&=0777;
+    }break;
     //#define PLUS   00011 // A+M -> A
     case PLUS:{
       DISASM("PLUS");
@@ -210,6 +201,103 @@ void executeVm(Cpu_t *cpu)
       if(cpu->flags&(1<<AF_FLAG))cpu->A++;
       if(cpu->A>0777)cpu->flags|=(1<<AF_FLAG);
       else cpu->flags&=~(1<<AF_FLAG);
+      cpu->A&=0777;
+    }break;
+    //#define DOUBLE 00014 // A*2 -> A, operand not used
+    case DOUBLE:{
+      DISASM("DOUBLE");
+      INCPC(cpu);
+      tmp=readMemory(cpu,mode);
+      cpu->A=2*tmp;
+      //if(cpu->flags&(1<<AF_FLAG))cpu->A++;
+      if(cpu->A>0777)cpu->flags|=(1<<AF_FLAG);
+      else cpu->flags&=~(1<<AF_FLAG);
+      cpu->A&=0777;
+    }break;
+    //#define DEC    00017 // A-1 -> A, operand not used
+    case DEC:{
+      DISASM("DEC");
+      INCPC(cpu);
+      //tmp=readMemory(cpu,mode);
+      cpu->A--;
+      //if(cpu->flags&(1<<AF_FLAG))cpu->A++;
+      //if(cpu->A>0777)cpu->flags|=(1<<AF_FLAG);
+      //else cpu->flags&=~(1<<AF_FLAG);
+      cpu->A&=0777;
+    }break;
+    //#define INV    00020 // NOT A -> A, operand not used
+    case INV:{
+      DISASM("INV");
+      INCPC(cpu);
+      cpu->A=~cpu->A;
+      cpu->A&=0777;
+    }break;
+    //#define NOR    00021 // A NOR M -> A
+    case NOR:{
+      DISASM("NOR");
+      INCPC(cpu);
+      tmp=readMemory(cpu,mode);
+      cpu->A=~(cpu->A|tmp);
+      cpu->A&=0777;
+    }break;
+    //#define ZERO   00023 // 0 -> A -> A
+    case ZERO:{
+      DISASM("ZERO");
+      INCPC(cpu);
+      cpu->A=0;
+    }break;
+    //#define NAND   00024 // A NAND M -> A
+    case NAND:{
+      DISASM("NAND");
+      INCPC(cpu);
+      tmp=readMemory(cpu,mode);
+      cpu->A=~(cpu->A&tmp);
+      cpu->A&=0777;
+    }break;
+    //#define INVM   00025 // NOT M -> A
+    case INVM:{
+      DISASM("INVM");
+      INCPC(cpu);
+      tmp=readMemory(cpu,mode);
+      cpu->A=~tmp;
+      cpu->A&=0777;
+    }break;
+    //#define EXOR   00026 // A EXOR M -> A
+    case EXOR:{
+      DISASM("EXOR");
+      INCPC(cpu);
+      tmp=readMemory(cpu,mode);
+      cpu->A=(cpu->A^tmp);
+      cpu->A&=0777;
+    }break;
+    //#define EXNOR  00031 // A EXNOR M -> A
+    case EXNOR:{
+      DISASM("EXNOR");
+      INCPC(cpu);
+      tmp=readMemory(cpu,mode);
+      cpu->A=~(cpu->A^tmp);
+      cpu->A&=0777;
+    }break;
+    //#define AND    00033 // A and M -> A
+    case AND:{
+      DISASM("AND");
+      INCPC(cpu);
+      tmp=readMemory(cpu,mode);
+      cpu->A=(cpu->A&tmp);
+      cpu->A&=0777;
+    }break;
+    //#define ONES   00034 // 0777->A set all ones
+    case ONES:{
+      DISASM("ZERO");
+      INCPC(cpu);
+      cpu->A=0777;
+    }break;
+    //#define OR     00036 // A or M -> A
+    case OR:{
+      DISASM("OR");
+      INCPC(cpu);
+      tmp=readMemory(cpu,mode);
+      cpu->A=(cpu->A|tmp);
       cpu->A&=0777;
     }break;
     //******************************************************
