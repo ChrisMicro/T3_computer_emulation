@@ -1,3 +1,4 @@
+#include <stdint.h>
 /*
    ftp://ftp.dreesen.ch/
 
@@ -22,22 +23,27 @@
  ============================================================================
  */
 
-#define M_SIZE 200 // reduced memory for Atmega328 emulation limitations
+#define M_SIZE 4096
 #define STACK_SIZE 256
+#define BANKS 2
 
 typedef struct {
-  uint16_t M[2][M_SIZE]; // memory
+  uint16_t M[BANKS][M_SIZE]; // memory
   uint16_t stack[STACK_SIZE];
-  uint16_t ACCU;
-  uint16_t SP;
+  uint16_t A;
+  uint16_t Sp;
   uint16_t Pc; // program counter
   uint16_t flags;
+  uint8_t  bank; // bank 0 or 1
   uint16_t display; // 4 digit nixie tube display ( panel output P )
   uint16_t keys;    // 12 input keys ( panel input P )
   uint16_t inport;  // 12 bit user input lines ( IO )
   uint16_t outport; // 12 bit user output lines ( IO )
 }Cpu_t;
-
+/* function prototypes */
+void simulatorReset(Cpu_t *cpu);
+void showCpu(Cpu_t *cpu);
+void executeVm(Cpu_t *cpu);
 // flags
 #define EQ_FLAG      0  // A = OPR
 #define GT_FLAG      1  // A > OPR
@@ -132,13 +138,15 @@ typedef struct {
 // the lower 4 bits are used for flag selection
 // BA9876543210 ==> bit number in hex
 // AAACCC01ffff ==> addressing mode, command, flag number
+#define JMPMASK  00760
+#define FLAGMASK 00017
 #define GSBS   00300 // gosub if flag is set ( PC->STCK; M->PC if flag set)
 #define GSBR   00320 // gosub if flag is reset ( PC->STCK; M->PC if flag reset)
 #define JMPS   00340 // jump if flag is set ( M->PC if flag set )
 #define JMPR   00360 // jump if flag is reset ( M->PC if flag reset )
 
 #define JMPU (JMPR+NIL_FLAG) // jump unconditional
-#define GSBR (GSBR+NIL_FLAG) // gosub unconditional
+#define GSBU  (GSBR+NIL_FLAG) // gosub unconditional
 
 // machine control
 #define RST    00400 // 0001->PC
@@ -182,13 +190,13 @@ typedef struct {
 #define CMP    00200 // A-M -> FLG
 
 // register register transfer
-#define TPCP   00501 // PC -> P
+#define TPCP   00501 // PC -> P // PC -> display
 #define TPCIO  00502 // PC -> IO
 #define TPCA   00503 // PC -> A
 #define TPPC   00510 // P -> PC
 #define TPP    00511 // P -> P read keyboard, write display
 #define TPIO   00512 // P -> IO
-#define TPA    00513 // P -> A
+#define TPA    00513 // P -> A // keys -> A
 #define TIOPC  00520 // IO->PC
 #define TIOP   00521 // IO->P
 #define TIOA   00523 // IO->A
@@ -199,10 +207,12 @@ typedef struct {
 // shift operations ( n bits 0..7 )
 // example:
 // ROL+2 rotate left n bits
-#define ROL 0700 // rotate left n bits
-#define ROR 0710 // rotate right n bits
-#define SFL 0720 // shift left n bits
-#define SFR 0730 // shift right n bits
+#define ROL 00700 // rotate left n bits
+#define ROR 00710 // rotate right n bits
+#define SFL 00720 // shift left n bits
+#define SFR 00730 // shift right n bits
+
+#define SHIFTMASK 0770
 
 
 

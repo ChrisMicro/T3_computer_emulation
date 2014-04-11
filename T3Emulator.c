@@ -16,21 +16,21 @@
 
 uint16_t testProg[]=
 {
-    PLUS, 1,
-    JMPU, 0,
+    NOP1, // this instruction is not executed, reset vector set to next address (1)
+    JMPU, 6,
     LDA, 0321,
     PLPC,
-    GSBU, 2,
+    GSBU, 3,
     SAF,
     SAF,
-    LDA, 0000,     //  0123->A
-    LDA+ABS, 0002, //  memory[0100]->A
-    LDA+IND, 0003, //  memory[memory[0100]]->A
+    LDA, 0000,     //  0->A
+    LDA+ABS, 0002, //  memory[2]->A
+    LDA+IND, 0003, //  memory[memory[2]]->A
     LDA, 04321,
     SAF,
     JMPR+AF_FLAG, 2,
     CAF,
-    JMPR+AF_FLAG, 2,
+    JMPR+AF_FLAG, 1,
 };
 
 
