@@ -1,3 +1,6 @@
+#ifndef __T3__
+  #define __T3__
+
 #include <stdint.h>
 /*
    ftp://ftp.dreesen.ch/
@@ -213,6 +216,8 @@ void executeVm(Cpu_t *cpu);
 #define SFR 00730 // shift right n bits
 
 #define SHIFTMASK 0770
+
+#endif
 
 
 

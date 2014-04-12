@@ -13,6 +13,7 @@
 #include <string.h>
 #include "t3.h"
 #include "systemout.h"
+#include "example.h"
 
 uint16_t testProg[]=
 {
@@ -61,7 +62,8 @@ int main(void)
     Cpu_t cpu;
 	SYSTEMOUT("T3Emulator"); /* prints T3Emulator */
 	simulatorReset(&cpu);
-	memcpy(&cpu.M[0],testProg,sizeof(testProg));
+	loadProgram(&cpu.M[0][0]);
+	//memcpy(&cpu.M[0],testProg,sizeof(testProg));
 	SYSTEMOUTCR;
 
     SYSTEMOUT("commands"); /* prints T3Emulator */
