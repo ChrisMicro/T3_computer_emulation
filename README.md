@@ -1,4 +1,5 @@
-The T3 is a computer with a 12 bit cpu build with TTL logic.
+The T3 is a computer with a 12 bit cpu build with TTL logic developed by Jos Dreesen in the 80ies.
+
 There are two ram memories with a size of 4096x12bit.
 There is also a separated stack with 256x12bit
 
