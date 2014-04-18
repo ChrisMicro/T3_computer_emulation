@@ -25,7 +25,13 @@ void simulatorReset(Cpu_t *cpu)
   cpu->outport=0;
   cpu->display=0;
 }
-
+void dumpMem1(Cpu_t *cpu)
+{
+  SYSTEMOUT("dump mem1:");
+  uint16_t n;
+  for(n=0; n<0x50;n++)SYSTEMOUTHEX(" ",cpu->M[0][n]);
+  SYSTEMOUT(" ");
+}
 uint16_t readMemory(Cpu_t *cpu, uint16_t mode)
 {
   uint16_t tmp;
@@ -51,6 +57,7 @@ uint16_t readMemory(Cpu_t *cpu, uint16_t mode)
       tmp=0;
     }break;
   }
+  //SYSTEMOUTHEX("return value:",tmp);
   return tmp;
 }
 void writeMemory(Cpu_t *cpu, uint16_t mode,uint16_t value)
@@ -165,8 +172,12 @@ void executeVm(Cpu_t *cpu)
 {
   uint16_t tmp;
   uint16_t mode;
-  uint16_t instr;
+  uint16_t instr,k;
+  //SYSTEMOUTHEX("\npc:",cpu->Pc);
   tmp=readMemory(cpu,IMM);
+  //SYSTEMOUTHEX(" instr code:",tmp);
+  //showCpu(cpu);
+  //SYSTEMOUTHEX("pc:",cpu->Pc);
   mode=tmp&03000;
   instr=tmp&0777;
 
@@ -196,7 +207,9 @@ void executeVm(Cpu_t *cpu)
     case PLUS:{
       DISASM("PLUS");
       INCPC(cpu);
+      //SYSTEMOUTHEX("@:",cpu->Pc);
       tmp=readMemory(cpu,mode);
+      //SYSTEMOUTHEX("plus:",tmp);
       cpu->A+=tmp;
       if(cpu->flags&(1<<AF_FLAG))cpu->A++;
       if(cpu->A>0777)cpu->flags|=(1<<AF_FLAG);
@@ -403,8 +416,11 @@ void executeVm(Cpu_t *cpu)
       DISASM("CMP");
       INCPC(cpu);
       tmp=readMemory(cpu,mode);
+      cpu->flags&=~((1<<EQ_FLAG)|(1<<GT_FLAG)|(1<<SM_FLAG)|(1<<MSB_FLAG));
       //#define EQ_FLAG      0  // A = OPR
       if(tmp==cpu->A)cpu->flags|=(1<<EQ_FLAG);
+
+      //printf("a:%x  dest:%x\n",cpu->A,tmp);
       //#define GT_FLAG      1  // A > OPR
       if(tmp>cpu->A)cpu->flags|=(1<<GT_FLAG);
       //#define SM_FLAG      2  // A < OPR
@@ -556,6 +572,9 @@ void executeVm(Cpu_t *cpu)
       uint8_t flags;
       flags=instr&FLAGMASK;
       //ERROR("instr", tmp);
+      SYSTEMOUTHEX("flag selector",flags);
+      SYSTEMOUTHEX("      cpu.flags",cpu->flags);
+SYSTEMOUTCR;
       switch(tmp)
       {
       //******************************************************
@@ -597,6 +616,7 @@ void executeVm(Cpu_t *cpu)
             DISASM(" (call)");
             push(cpu,cpu->Pc+1);
             cpu->Pc=readMemory(cpu,mode)-1;
+            //dumpMem1(cpu);
           }
         }break;
 
@@ -609,40 +629,40 @@ void executeVm(Cpu_t *cpu)
           uint8_t shift=instr&07;
           switch(tmp)
           {
-          //#define ROL 00700 // rotate left n bits
-          case ROL:{
-            tmp=cpu->A;
-            tmp=tmp<<shift;
-            tmp|=cpu->A>>(13-shift);
-            if(tmp&010000)cpu->flags|=(1<<SF_FLAG);
-            else cpu->flags&=~(1<<SF_FLAG);
-            cpu->A=tmp&0777;
-          }
-          //#define ROR 00710 // rotate right n bits
-          case ROR:{
-            tmp=cpu->A;
-            tmp=tmp>>shift;
-            tmp|=cpu->A<<(13-shift);
-            if(tmp&010000)cpu->flags|=(1<<SF_FLAG);
-            else cpu->flags&=~(1<<SF_FLAG);
-            cpu->A=tmp&0777;
-          }
-          //#define SFL 00720 // shift left n bits
-          case SFL:{
-            tmp=cpu->A;
-            tmp=tmp<<shift;
-            cpu->A=tmp&0777;
-            if(tmp&010000)cpu->flags|=(1<<SF_FLAG);
-            else cpu->flags&=~(1<<SF_FLAG);
-          }
-          //#define SFR 00730 // shift right n bits
-          case SFR:{
-            tmp=cpu->A;
-            tmp=tmp>>shift;
-            cpu->A=tmp&0777;
-            if((cpu->A)>>(shift-1)&1)cpu->flags|=(1<<SF_FLAG);
-            else cpu->flags&=~(1<<SF_FLAG);
-          }
+            //#define ROL 00700 // rotate left n bits
+            case ROL:{
+              tmp=cpu->A;
+              tmp=tmp<<shift;
+              tmp|=cpu->A>>(13-shift);
+              if(tmp&010000)cpu->flags|=(1<<SF_FLAG);
+              else cpu->flags&=~(1<<SF_FLAG);
+              cpu->A=tmp&0777;
+            }break;
+            //#define ROR 00710 // rotate right n bits
+            case ROR:{
+              tmp=cpu->A;
+              tmp=tmp>>shift;
+              tmp|=cpu->A<<(13-shift);
+              if(tmp&010000)cpu->flags|=(1<<SF_FLAG);
+              else cpu->flags&=~(1<<SF_FLAG);
+              cpu->A=tmp&0777;
+            }break;
+            //#define SFL 00720 // shift left n bits
+            case SFL:{
+              tmp=cpu->A;
+              tmp=tmp<<shift;
+              cpu->A=tmp&0777;
+              if(tmp&010000)cpu->flags|=(1<<SF_FLAG);
+              else cpu->flags&=~(1<<SF_FLAG);
+            }break;
+            //#define SFR 00730 // shift right n bits
+            case SFR:{
+              tmp=cpu->A;
+              tmp=tmp>>shift;
+              cpu->A=tmp&0777;
+              if((cpu->A)>>(shift-1)&1)cpu->flags|=(1<<SF_FLAG);
+              else cpu->flags&=~(1<<SF_FLAG);
+            }break;
             default:
             {
               ERROR("error: unknown instruction",instr);
